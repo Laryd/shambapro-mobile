@@ -36,7 +36,7 @@ interface Props {
 
 export default function LoanForm({ onSubmit, loading }: Props) {
   const { t } = useTranslation();
-  const [loanType, setLoanType] = useState(LOAN_TYPES[0]);
+  const [loanType, setLoanType] = useState<typeof LOAN_TYPES[number]>(LOAN_TYPES[0]);
   const today = new Date().toISOString().slice(0, 10);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
