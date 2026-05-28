@@ -6,29 +6,43 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
+  Alert,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import KpiCard from '@/components/ui/KpiCard';
 import TransactionItem from '@/components/finances/TransactionItem';
 import AppModal from '@/components/ui/AppModal';
+import AppInput from '@/components/ui/AppInput';
+import AppButton from '@/components/ui/AppButton';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 import EmptyState from '@/components/ui/EmptyState';
 import SectionHeader from '@/components/ui/SectionHeader';
-import { getTransactions } from '@/lib/api/transactions';
+import ReportButton from '@/components/reports/ReportButton';
+import { getTransactions, updateTransaction, deleteTransaction } from '@/lib/api/transactions';
 import { createExpense } from '@/lib/api/expenses';
 import { getPlots } from '@/lib/api/plots';
 import { formatCurrency } from '@/lib/utils';
 import { Colors, Spacing } from '@/constants/colors';
+import { Transaction } from '@/types';
+import { EXPENSE_CATEGORIES } from '@/constants/categories';
 
 export default function FinancesScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const [expenseModal, setExpenseModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editDesc, setEditDesc] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   const { data: transactions, refetch, isLoading } = useQuery({
     queryKey: ['transactions'],
@@ -59,9 +73,45 @@ export default function FinancesScreen() {
     try {
       await createExpense(data);
       setExpenseModal(false);
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function openEdit(tx: Transaction) {
+    setEditingTx(tx);
+    setEditDesc(tx.description);
+    setEditAmount(String(tx.amount));
+    setEditDate(tx.date.slice(0, 10));
+    setEditCategory(tx.category);
+  }
+
+  async function handleSaveEdit() {
+    if (!editingTx) return;
+    setSubmitting(true);
+    try {
+      await updateTransaction(editingTx._id, {
+        description: editDesc,
+        amount: Number(editAmount),
+        date: editDate,
+        category: editCategory,
+      });
+      setEditingTx(null);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteTransaction(id);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete');
     }
   }
 
@@ -70,12 +120,16 @@ export default function FinancesScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('finances.title')}</Text>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setExpenseModal(true)}
-          >
-            <Ionicons name="add" size={20} color={Colors.white} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <ReportButton type="backup" />
+            <ReportButton />
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setExpenseModal(true)}
+            >
+              <Ionicons name="add" size={20} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.kpiRow}>
@@ -126,7 +180,13 @@ export default function FinancesScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(t) => t._id}
-          renderItem={({ item }) => <TransactionItem transaction={item} />}
+          renderItem={({ item }) => (
+            <TransactionItem
+              transaction={item}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+            />
+          )}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />
@@ -154,6 +214,69 @@ export default function FinancesScreen() {
           loading={submitting}
         />
       </AppModal>
+
+      <AppModal
+        visible={!!editingTx}
+        onClose={() => setEditingTx(null)}
+        title={t('finances.editEntry', { defaultValue: 'Edit Entry' })}
+      >
+        <View>
+          <AppInput
+            label={t('expenses.description')}
+            value={editDesc}
+            onChangeText={setEditDesc}
+            placeholder="Description"
+          />
+          <AppInput
+            label={t('expenses.amount')}
+            value={editAmount}
+            onChangeText={setEditAmount}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+          <AppInput
+            label={t('expenses.date')}
+            value={editDate}
+            onChangeText={setEditDate}
+            placeholder="yyyy-mm-dd"
+          />
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>{t('expenses.category')}</Text>
+            <TouchableOpacity
+              style={styles.selector}
+              onPress={() => setShowCategoryPicker((v) => !v)}
+            >
+              <Text style={styles.selectorText}>
+                {t(`cat.${editCategory}`, { defaultValue: editCategory.replace(/_/g, ' ') })}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+            {showCategoryPicker ? (
+              <View style={styles.pickerList}>
+                <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.pickerItem, cat === editCategory && styles.pickerItemActive]}
+                      onPress={() => { setEditCategory(cat); setShowCategoryPicker(false); }}
+                    >
+                      <Text style={[styles.pickerItemText, cat === editCategory && styles.pickerItemActiveText]}>
+                        {t(`cat.${cat}`, { defaultValue: cat })}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </View>
+          <AppButton
+            title={submitting ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save Changes' })}
+            onPress={handleSaveEdit}
+            loading={submitting}
+            fullWidth
+          />
+        </View>
+      </AppModal>
     </>
   );
 }
@@ -168,6 +291,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   title: { fontSize: 22, fontWeight: '800', color: Colors.text },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   addBtn: {
     width: 36,
     height: 36,
@@ -201,4 +325,34 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' },
   filterActiveText: { color: Colors.primary },
   list: { paddingHorizontal: Spacing.base, paddingBottom: Spacing.xl },
+  field: { marginBottom: Spacing.md },
+  fieldLabel: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary, marginBottom: 6 },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md - 2,
+  },
+  selectorText: { fontSize: 15, color: Colors.text },
+  pickerList: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+  },
+  pickerItem: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  pickerItemActive: { backgroundColor: Colors.primaryLight },
+  pickerItemText: { fontSize: 14, color: Colors.text },
+  pickerItemActiveText: { color: Colors.primaryDark, fontWeight: '600' },
 });
