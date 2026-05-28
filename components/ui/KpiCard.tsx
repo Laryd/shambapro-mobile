@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppCard from './AppCard';
 import { Colors, Spacing } from '@/constants/colors';
@@ -12,6 +12,7 @@ interface Props {
   iconBg?: string;
   subtitle?: string;
   subtitleColor?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function KpiCard({
@@ -22,9 +23,10 @@ export default function KpiCard({
   iconBg = Colors.primaryLight,
   subtitle,
   subtitleColor = Colors.textMuted,
+  style,
 }: Props) {
   return (
-    <AppCard style={styles.card}>
+    <AppCard style={[styles.card, style]}>
       <View style={styles.row}>
         <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
           <Ionicons name={icon} size={20} color={iconColor} />
