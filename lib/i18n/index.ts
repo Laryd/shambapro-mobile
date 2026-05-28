@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import { resources } from './translations';
 
 i18n.use(initReactI18next).init({
-  compatibilityJSON: 'v4',
+  compatibilityJSON: 'v3',
   resources,
   lng: 'en',
   fallbackLng: 'en',
