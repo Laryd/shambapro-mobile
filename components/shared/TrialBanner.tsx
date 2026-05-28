@@ -16,6 +16,7 @@ export default function TrialBanner() {
 
   if (exemptUntil && new Date(exemptUntil) > new Date()) return null;
   if (plan !== 'free_trial' && status === 'active') return null;
+  if (plan === 'free_trial' && !trialEndsAt) return null;
 
   const days = daysLeft(trialEndsAt);
   const isExpired = status === 'expired' || (plan === 'free_trial' && (days === null || days < 0));
