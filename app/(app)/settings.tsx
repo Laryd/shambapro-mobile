@@ -14,14 +14,21 @@ import { useTranslation } from 'react-i18next';
 import AppCard from '@/components/ui/AppCard';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 import { useAuthStore } from '@/store/authStore';
+import { getSubscription } from '@/lib/api/subscription';
 import { formatDate } from '@/lib/utils';
 import { Colors, Spacing } from '@/constants/colors';
+import { useQuery } from '@tanstack/react-query';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+
+  const { data: sub } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: getSubscription,
+  });
 
   function confirmLogout() {
     Alert.alert(t('settings.logout'), t('settings.logoutConfirm'), [
@@ -67,12 +74,12 @@ export default function SettingsScreen() {
           <Text style={styles.sectionLabel}>{t('settings.subscription')}</Text>
           <View style={styles.subRow}>
             <Text style={styles.subPlan}>
-              {user?.subscription.plan.replace('_', ' ').toUpperCase() ?? 'None'}
+              {(sub?.plan ?? user?.subscription.plan ?? 'none').replace('_', ' ').toUpperCase()}
             </Text>
             <View style={[
               styles.subBadge,
               {
-                backgroundColor: user?.subscription.status === 'active'
+                backgroundColor: (sub?.isActive ?? user?.subscription.status === 'active')
                   ? Colors.primaryLight
                   : Colors.dangerLight,
               },
@@ -80,30 +87,34 @@ export default function SettingsScreen() {
               <Text style={[
                 styles.subBadgeText,
                 {
-                  color: user?.subscription.status === 'active'
+                  color: (sub?.isActive ?? user?.subscription.status === 'active')
                     ? Colors.primary
                     : Colors.danger,
                 },
               ]}>
-                {user?.subscription.status?.toUpperCase()}
+                {(sub?.isActive ?? user?.subscription.status === 'active') ? 'ACTIVE' : 'EXPIRED'}
               </Text>
             </View>
           </View>
-          {user?.subscription.trialEndsAt ? (
+          {sub?.isTrial && sub.trialEndsAt ? (
             <Text style={styles.subNote}>
-              Trial ends: {formatDate(user.subscription.trialEndsAt)}
+              Trial ends: {formatDate(sub.trialEndsAt)}
             </Text>
           ) : null}
-          {user?.subscription.currentPeriodEnd ? (
+          {sub?.currentPeriodEnd && !['admin', 'free', 'exempt', 'legacy'].includes(sub.plan) ? (
             <Text style={styles.subNote}>
-              Renews: {formatDate(user.subscription.currentPeriodEnd)}
+              Renews: {formatDate(sub.currentPeriodEnd)}
             </Text>
           ) : null}
           <TouchableOpacity
             style={styles.manageSub}
             onPress={() => router.push('/(app)/pricing')}
           >
-            <Text style={styles.manageSubText}>Manage Subscription</Text>
+            <Text style={styles.manageSubText}>
+              {sub?.isActive && ['admin', 'free', 'exempt', 'legacy'].includes(sub.plan)
+                ? 'View Subscription'
+                : 'Manage Subscription'}
+            </Text>
             <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
           </TouchableOpacity>
         </AppCard>
