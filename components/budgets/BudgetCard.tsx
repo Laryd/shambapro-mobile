@@ -34,7 +34,22 @@ export default function BudgetCard({ budget }: Props) {
         {budget.totalActual !== undefined ? (
           <View style={styles.totalItem}>
             <Text style={styles.totalLabel}>{t('budgets.actual')}</Text>
-            <Text style={styles.totalValue}>{formatCurrency(budget.totalActual)}</Text>
+            <Text style={[styles.totalValue, {
+              color: budget.totalActual > budget.totalBudget ? Colors.danger : Colors.primary,
+            }]}>
+              {formatCurrency(budget.totalActual)}
+            </Text>
+          </View>
+        ) : null}
+        {budget.totalActual !== undefined ? (
+          <View style={styles.totalItem}>
+            <Text style={styles.totalLabel}>{t('budgets.variance', { defaultValue: 'Variance' })}</Text>
+            <Text style={[styles.totalValue, {
+              color: budget.totalActual > budget.totalBudget ? Colors.danger : Colors.primary,
+            }]}>
+              {budget.totalActual > budget.totalBudget ? '+' : ''}
+              {formatCurrency(budget.totalActual - budget.totalBudget)}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -48,17 +63,27 @@ export default function BudgetCard({ budget }: Props) {
           ? Math.min((actual / item.budgetedAmount) * 100, 100)
           : 0;
 
+        const variantAmt = actual - item.budgetedAmount;
+
         return (
           <View key={i} style={styles.item}>
-            <View style={styles.itemHeader}>
+            <View style={styles.itemRow}>
               <Text style={styles.category} numberOfLines={1}>
                 {t(`cat.${item.category}`, { defaultValue: item.category })}
               </Text>
-              <Text style={[styles.variance, { color: varianceColor(variance) }]}>
-                {actual > 0
-                  ? `${formatCurrency(actual)} / ${formatCurrency(item.budgetedAmount)}`
-                  : formatCurrency(item.budgetedAmount)}
-              </Text>
+              <View style={styles.itemAmounts}>
+                <Text style={styles.amtBudgeted}>{formatCurrency(item.budgetedAmount)}</Text>
+                {actual > 0 ? (
+                  <>
+                    <Text style={[styles.amtActual, { color: varianceColor(variance) }]}>
+                      {formatCurrency(actual)}
+                    </Text>
+                    <Text style={[styles.amtVariance, { color: varianceColor(variance) }]}>
+                      {variantAmt > 0 ? '+' : ''}{formatCurrency(variantAmt)}
+                    </Text>
+                  </>
+                ) : null}
+              </View>
             </View>
             <View style={styles.progressBar}>
               <View
@@ -105,13 +130,18 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 11, color: Colors.textMuted },
   totalValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
   item: { marginBottom: Spacing.sm },
-  itemHeader: {
+  itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 4,
+    gap: Spacing.sm,
   },
   category: { fontSize: 13, color: Colors.textSecondary, flex: 1 },
-  variance: { fontSize: 12, fontWeight: '500' },
+  itemAmounts: { alignItems: 'flex-end', gap: 1 },
+  amtBudgeted: { fontSize: 11, color: Colors.textMuted },
+  amtActual: { fontSize: 12, fontWeight: '600' },
+  amtVariance: { fontSize: 11, fontWeight: '500' },
   progressBar: {
     height: 5,
     backgroundColor: Colors.gray100,
