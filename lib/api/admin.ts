@@ -14,6 +14,11 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export async function getAdminSettings(): Promise<{ paymentsDisabled: boolean }> {
+  const { data } = await apiClient.get('/api/admin/settings');
+  return data.data;
+}
+
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const { data } = await apiClient.get('/api/admin/users');
   return data.data;
@@ -22,12 +27,12 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
 export async function updateAdminSettings(settings: {
   paymentsDisabled: boolean;
 }): Promise<void> {
-  await apiClient.post('/api/admin/settings', settings);
+  await apiClient.patch('/api/admin/settings', settings);
 }
 
 export async function setUserExemption(
   userId: string,
-  exemptUntil: string
+  exemptUntil: string | null
 ): Promise<void> {
-  await apiClient.post(`/api/admin/users/${userId}/exemption`, { exemptUntil });
+  await apiClient.patch(`/api/admin/users/${userId}/exemption`, { exemptUntil });
 }
