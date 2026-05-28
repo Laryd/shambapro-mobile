@@ -45,6 +45,8 @@ export default function PricingScreen() {
   });
 
   const days = daysLeft(sub?.trialEndsAt);
+  const FREE_PLANS = ['admin', 'free', 'exempt', 'legacy'];
+  const hasFreeAccess = sub?.isActive && FREE_PLANS.includes(sub.plan);
 
   async function handleSubscribe() {
     const cleanPhone = phone.trim().replace(/\s/g, '');
@@ -130,7 +132,7 @@ export default function PricingScreen() {
                 {t('pricing.trialDaysLeft', { days })}
               </Text>
             ) : null}
-            {sub.currentPeriodEnd ? (
+            {sub.currentPeriodEnd && !hasFreeAccess ? (
               <Text style={styles.statusDays}>
                 Valid until {formatDate(sub.currentPeriodEnd)}
               </Text>
@@ -138,83 +140,103 @@ export default function PricingScreen() {
           </AppCard>
         ) : null}
 
-        <View style={styles.planToggle}>
-          {(['monthly', 'yearly'] as const).map((p) => (
-            <TouchableOpacity
-              key={p}
-              style={[styles.planBtn, plan === p && styles.planActive]}
-              onPress={() => setPlan(p)}
-            >
-              <Text style={[styles.planText, plan === p && styles.planActiveText]}>
-                {t(`pricing.${p}`)}
+        {hasFreeAccess ? (
+          <AppCard style={styles.freeCard}>
+            <View style={styles.freeRow}>
+              <Ionicons name="shield-checkmark" size={24} color={Colors.primary} />
+              <View style={styles.freeText}>
+                <Text style={styles.freeTitle}>Your access is active</Text>
+                <Text style={styles.freeSub}>
+                  {sub?.plan === 'admin'
+                    ? 'You have admin access — no payment needed.'
+                    : sub?.plan === 'exempt'
+                    ? `Complimentary access${sub.exemptUntil ? ' until ' + formatDate(sub.exemptUntil) : ''}.`
+                    : 'Payments are currently disabled — enjoy free access.'}
+                </Text>
+              </View>
+            </View>
+          </AppCard>
+        ) : (
+          <>
+            <View style={styles.planToggle}>
+              {(['monthly', 'yearly'] as const).map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.planBtn, plan === p && styles.planActive]}
+                  onPress={() => setPlan(p)}
+                >
+                  <Text style={[styles.planText, plan === p && styles.planActiveText]}>
+                    {t(`pricing.${p}`)}
+                  </Text>
+                  {p === 'yearly' ? (
+                    <Text style={[styles.saveBadge, plan === p && styles.saveBadgeActive]}>
+                      {t('pricing.save')}
+                    </Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <AppCard style={styles.priceCard}>
+              <Text style={styles.priceAmount}>
+                KSH {plan === 'monthly' ? '120' : '1,200'}
               </Text>
-              {p === 'yearly' ? (
-                <Text style={[styles.saveBadge, plan === p && styles.saveBadgeActive]}>
-                  {t('pricing.save')}
+              <Text style={styles.pricePeriod}>
+                per {plan === 'monthly' ? 'month' : 'year'}
+              </Text>
+              {plan === 'yearly' ? (
+                <Text style={styles.priceNote}>
+                  Only KSH 100/month — save KSH 240/year
                 </Text>
               ) : null}
-            </TouchableOpacity>
-          ))}
-        </View>
 
-        <AppCard style={styles.priceCard}>
-          <Text style={styles.priceAmount}>
-            KSH {plan === 'monthly' ? '120' : '1,200'}
-          </Text>
-          <Text style={styles.pricePeriod}>
-            per {plan === 'monthly' ? 'month' : 'year'}
-          </Text>
-          {plan === 'yearly' ? (
-            <Text style={styles.priceNote}>
-              Only KSH 100/month — save KSH 240/year
-            </Text>
-          ) : null}
-
-          <View style={styles.featureList}>
-            {FEATURES.map((f) => (
-              <View key={f} style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
-                <Text style={styles.featureText}>{f}</Text>
+              <View style={styles.featureList}>
+                {FEATURES.map((f) => (
+                  <View key={f} style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+                    <Text style={styles.featureText}>{f}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        </AppCard>
+            </AppCard>
 
-        <Text style={styles.trialNote}>{t('pricing.trialNote')}</Text>
+            <Text style={styles.trialNote}>{t('pricing.trialNote')}</Text>
 
-        <View style={styles.phoneWrap}>
-          <Text style={styles.phoneLabel}>{t('pricing.phone')}</Text>
-          <View style={styles.phoneInput}>
-            <Ionicons name="phone-portrait-outline" size={18} color={Colors.textMuted} />
-            <TextInput
-              style={styles.phoneText}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              placeholder="07xx xxx xxx"
-              placeholderTextColor={Colors.textLight}
+            <View style={styles.phoneWrap}>
+              <Text style={styles.phoneLabel}>{t('pricing.phone')}</Text>
+              <View style={styles.phoneInput}>
+                <Ionicons name="phone-portrait-outline" size={18} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.phoneText}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  placeholder="07xx xxx xxx"
+                  placeholderTextColor={Colors.textLight}
+                />
+              </View>
+            </View>
+
+            <AppButton
+              title={loading ? t('common.loading') : t('pricing.subscribe')}
+              onPress={handleSubscribe}
+              loading={loading}
+              fullWidth
+              style={styles.subscribeBtn}
             />
-          </View>
-        </View>
 
-        <AppButton
-          title={loading ? t('common.loading') : t('pricing.subscribe')}
-          onPress={handleSubscribe}
-          loading={loading}
-          fullWidth
-          style={styles.subscribeBtn}
-        />
-
-        {checkoutId ? (
-          <AppButton
-            title={loading ? 'Verifying…' : 'Verify Payment'}
-            onPress={handleVerify}
-            variant="outline"
-            loading={loading}
-            fullWidth
-            style={{ marginTop: Spacing.md }}
-          />
-        ) : null}
+            {checkoutId ? (
+              <AppButton
+                title={loading ? 'Verifying…' : 'Verify Payment'}
+                onPress={handleVerify}
+                variant="outline"
+                loading={loading}
+                fullWidth
+                style={{ marginTop: Spacing.md }}
+              />
+            ) : null}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -278,6 +300,11 @@ const styles = StyleSheet.create({
   featureList: { alignSelf: 'stretch', gap: Spacing.sm },
   featureItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   featureText: { fontSize: 14, color: Colors.textSecondary },
+  freeCard: { backgroundColor: Colors.primaryLight },
+  freeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
+  freeText: { flex: 1 },
+  freeTitle: { fontSize: 16, fontWeight: '700', color: Colors.primary },
+  freeSub: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   trialNote: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
   phoneWrap: {},
   phoneLabel: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary, marginBottom: 6 },
