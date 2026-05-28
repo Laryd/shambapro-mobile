@@ -210,6 +210,7 @@ export interface SubscriptionState {
   daysLeft: number | null;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
+  exemptUntil?: string | null;
 }
 
 export interface ApiResponse<T> {
