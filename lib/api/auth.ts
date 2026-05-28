@@ -33,6 +33,11 @@ export async function getMe(): Promise<User> {
   return data.data;
 }
 
+export async function googleAuth(accessToken: string): Promise<AuthResponse> {
+  const { data } = await apiClient.post('/api/mobile/auth/google', { accessToken });
+  return data.data;
+}
+
 export async function updateLanguage(language: 'en' | 'sw'): Promise<void> {
   await apiClient.patch('/api/user/language', { language });
 }
