@@ -183,7 +183,7 @@ export default function DashboardScreen() {
             }}
           >
             <View style={[styles.actionIcon, { backgroundColor: Colors.primaryLight }]}>
-              <Ionicons name="cut-outline" size={22} color={Colors.primary} />
+              <Ionicons name="leaf-outline" size={22} color={Colors.primary} />
             </View>
             <Text style={styles.actionText}>{t('dashboard.recordHarvest')}</Text>
           </TouchableOpacity>
