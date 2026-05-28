@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,18 +15,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { ResponseType } from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 import Svg, { Path } from 'react-native-svg';
 import AppInput from '@/components/ui/AppInput';
 import AppButton from '@/components/ui/AppButton';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
-import { register, googleAuth } from '@/lib/api/auth';
+import { register } from '@/lib/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { Colors, Spacing } from '@/constants/colors';
 import { useTranslation } from 'react-i18next';
+import { User } from '@/types';
 
-WebBrowser.maybeCompleteAuthSession();
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
 function GoogleIcon() {
   return (
@@ -60,25 +60,28 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    responseType: ResponseType.Token,
-  });
-
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const accessToken = googleResponse.authentication?.accessToken;
-      if (accessToken) handleGoogleAuth(accessToken);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleResponse]);
-
-  async function handleGoogleAuth(accessToken: string) {
+  async function handleGoogleSignIn() {
     setGoogleLoading(true);
     try {
-      const { token, user } = await googleAuth(accessToken);
-      await setAuth(token, user);
-      router.replace('/(app)/(tabs)');
+      const initiateUrl = `${API_BASE}/api/mobile/auth/google-initiate?scheme=shambapro`;
+      const redirectUrl = Linking.createURL('auth/google');
+      const result = await WebBrowser.openAuthSessionAsync(initiateUrl, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        const parsed = new URL(result.url);
+        const error = parsed.searchParams.get('error');
+        if (error) {
+          Alert.alert(t('common.error'), 'Google sign-in failed. Please try again.');
+          return;
+        }
+        const token = parsed.searchParams.get('token');
+        const userStr = parsed.searchParams.get('user');
+        if (token && userStr) {
+          const user = JSON.parse(decodeURIComponent(userStr)) as User;
+          await setAuth(token, user);
+          router.replace('/(app)/(tabs)');
+        }
+      }
     } catch (err: unknown) {
       Alert.alert(t('common.error'), err instanceof Error ? err.message : 'Google sign-in failed');
     } finally {
@@ -146,7 +149,7 @@ export default function RegisterScreen() {
 
           <TouchableOpacity
             style={styles.googleBtn}
-            onPress={() => promptGoogleAsync()}
+            onPress={handleGoogleSignIn}
             disabled={googleLoading || loading}
           >
             <GoogleIcon />
