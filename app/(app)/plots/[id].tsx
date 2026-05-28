@@ -21,11 +21,12 @@ import HarvestItem from '@/components/harvests/HarvestItem';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 import HarvestForm from '@/components/harvests/HarvestForm';
 import PlotForm from '@/components/plots/PlotForm';
+import ReportButton from '@/components/reports/ReportButton';
 import EmptyState from '@/components/ui/EmptyState';
 import SectionHeader from '@/components/ui/SectionHeader';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { getPlot, updatePlot, deletePlot } from '@/lib/api/plots';
-import { getExpenses, createExpense, deleteExpense } from '@/lib/api/expenses';
+import { getExpenses, createExpense, updateExpense, deleteExpense } from '@/lib/api/expenses';
 import { getHarvests, createHarvest, deleteHarvest } from '@/lib/api/harvests';
 import { formatCurrency, formatDate, getRatoonLabel, getProfitColor } from '@/lib/utils';
 import { Colors, Spacing } from '@/constants/colors';
@@ -42,6 +43,7 @@ export default function PlotDetailScreen() {
   const [expenseModal, setExpenseModal] = useState(false);
   const [harvestModal, setHarvestModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { data: plot, isLoading: plotLoading, refetch: refetchPlot } = useQuery({
@@ -81,6 +83,20 @@ export default function PlotDetailScreen() {
       await createExpense({ ...data, plotId: id! });
       setExpenseModal(false);
       refetchExpenses();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleEditExpense(data: Parameters<typeof createExpense>[0]) {
+    if (!editingExpense) return;
+    setSubmitting(true);
+    try {
+      await updateExpense(editingExpense._id, data);
+      setEditingExpense(null);
+      refetchExpenses();
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update expense');
     } finally {
       setSubmitting(false);
     }
@@ -138,6 +154,7 @@ export default function PlotDetailScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{plot.name}</Text>
           <View style={styles.headerActions}>
+            <ReportButton plotId={id} />
             <TouchableOpacity onPress={() => setEditModal(true)} style={styles.actionIconBtn}>
               <Ionicons name="pencil-outline" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -266,6 +283,7 @@ export default function PlotDetailScreen() {
                     <ExpenseItem
                       key={exp._id}
                       expense={exp}
+                      onEdit={(e) => setEditingExpense(e)}
                       onDelete={async (eid) => {
                         await deleteExpense(eid);
                         refetchExpenses();
@@ -330,6 +348,29 @@ export default function PlotDetailScreen() {
         title={t('plots.editPlot')}
       >
         <PlotForm onSubmit={handleEditPlot} loading={submitting} initialData={plot} />
+      </AppModal>
+
+      <AppModal
+        visible={!!editingExpense}
+        onClose={() => setEditingExpense(null)}
+        title={t('expenses.editExpense', { defaultValue: 'Edit Expense' })}
+      >
+        {editingExpense ? (
+          <ExpenseForm
+            onSubmit={handleEditExpense}
+            loading={submitting}
+            submitLabel={t('common.save', { defaultValue: 'Save Changes' })}
+            initialData={{
+              category: editingExpense.category,
+              description: editingExpense.description,
+              amount: editingExpense.amount,
+              date: editingExpense.date,
+              quantity: editingExpense.quantity,
+              unit: editingExpense.unit,
+              notes: editingExpense.notes,
+            }}
+          />
+        ) : null}
       </AppModal>
     </>
   );
