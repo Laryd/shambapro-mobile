@@ -21,6 +21,17 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+interface InitialData {
+  category?: string;
+  description?: string;
+  amount?: number;
+  date?: string;
+  plotId?: string;
+  quantity?: number;
+  unit?: string;
+  notes?: string;
+}
+
 interface Props {
   onSubmit: (data: {
     category: string;
@@ -34,22 +45,44 @@ interface Props {
   }) => Promise<void>;
   plots?: Plot[];
   initialPlotId?: string;
+  initialData?: InitialData;
+  submitLabel?: string;
   loading?: boolean;
 }
 
-export default function ExpenseForm({ onSubmit, plots, initialPlotId, loading }: Props) {
+export default function ExpenseForm({ onSubmit, plots, initialPlotId, initialData, submitLabel, loading }: Props) {
   const { t } = useTranslation();
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
-  const [useCustom, setUseCustom] = useState(false);
-  const [customCategory, setCustomCategory] = useState('');
-  const [selectedPlotId, setSelectedPlotId] = useState(initialPlotId ?? '');
+
+  const resolveInitialCategory = (): typeof EXPENSE_CATEGORIES[number] => {
+    const cat = initialData?.category;
+    if (cat && (EXPENSE_CATEGORIES as readonly string[]).includes(cat)) {
+      return cat as typeof EXPENSE_CATEGORIES[number];
+    }
+    return EXPENSE_CATEGORIES[0];
+  };
+
+  const [category, setCategory] = useState<typeof EXPENSE_CATEGORIES[number]>(resolveInitialCategory());
+  const [useCustom, setUseCustom] = useState(
+    !!(initialData?.category && !(EXPENSE_CATEGORIES as readonly string[]).includes(initialData.category))
+  );
+  const [customCategory, setCustomCategory] = useState(
+    useCustom ? (initialData?.category ?? '') : ''
+  );
+  const [selectedPlotId, setSelectedPlotId] = useState(initialData?.plotId ?? initialPlotId ?? '');
   const [showCategoryList, setShowCategoryList] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { date: today },
+    defaultValues: {
+      description: initialData?.description ?? '',
+      amount: initialData?.amount != null ? String(initialData.amount) : '',
+      date: initialData?.date?.slice(0, 10) ?? today,
+      quantity: initialData?.quantity != null ? String(initialData.quantity) : '',
+      unit: initialData?.unit ?? '',
+      notes: initialData?.notes ?? '',
+    },
   });
 
   async function onValid(vals: FormData) {
@@ -232,7 +265,9 @@ export default function ExpenseForm({ onSubmit, plots, initialPlotId, loading }:
       />
 
       <AppButton
-        title={loading ? t('expenses.adding') : t('expenses.addExpense')}
+        title={loading
+          ? t('expenses.adding')
+          : (submitLabel ?? t('expenses.addExpense'))}
         onPress={handleSubmit(onValid)}
         loading={loading}
         fullWidth
