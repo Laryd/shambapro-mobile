@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ||
@@ -15,8 +16,13 @@ const apiClient = axios.create({
   timeout: 15000,
 });
 
+async function getStoredToken(): Promise<string | null> {
+  if (Platform.OS === 'web') return localStorage.getItem('shamba_pro_token');
+  return SecureStore.getItemAsync('shamba_pro_token');
+}
+
 apiClient.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('shamba_pro_token');
+  const token = await getStoredToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
