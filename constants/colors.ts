@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const Colors = {
   primary: '#059669',
   primaryLight: '#d1fae5',
@@ -86,25 +88,34 @@ export const Radius = {
 };
 
 export const Shadow = {
-  sm: {
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  lg: {
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 5,
-  },
+  sm: Platform.select({
+    web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' },
+    default: {
+      shadowColor: Colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+  }),
+  md: Platform.select({
+    web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)' },
+    default: {
+      shadowColor: Colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+  }),
+  lg: Platform.select({
+    web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.12)' },
+    default: {
+      shadowColor: Colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+  }),
 };
