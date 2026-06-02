@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AppCard from '@/components/ui/AppCard';
 import { Colors, Spacing } from '@/constants/colors';
 import { Budget } from '@/types';
@@ -8,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 
 interface Props {
   budget: Budget;
+  onEdit?: (budget: Budget) => void;
+  onDelete?: (id: string) => void;
 }
 
 function varianceColor(variance: number): string {
@@ -16,14 +19,41 @@ function varianceColor(variance: number): string {
   return Colors.danger;
 }
 
-export default function BudgetCard({ budget }: Props) {
+export default function BudgetCard({ budget, onEdit, onDelete }: Props) {
   const { t } = useTranslation();
+
+  function confirmDelete() {
+    Alert.alert(
+      'Delete Budget',
+      'This budget plan will be permanently removed. Actual expenses are not affected.',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => onDelete?.(budget._id) },
+      ]
+    );
+  }
 
   return (
     <AppCard style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.plotName}>{budget.plot?.name ?? 'Unknown Plot'}</Text>
-        <Text style={styles.season}>{budget.season}</Text>
+        <View style={styles.titleWrap}>
+          <Text style={styles.plotName}>{budget.plot?.name ?? 'Unknown Plot'}</Text>
+          <Text style={styles.season}>{budget.season}</Text>
+        </View>
+        {(onEdit || onDelete) && (
+          <View style={styles.headerActions}>
+            {onEdit && (
+              <TouchableOpacity onPress={() => onEdit(budget)} style={styles.actionBtn}>
+                <Ionicons name="pencil-outline" size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+            {onDelete && (
+              <TouchableOpacity onPress={confirmDelete} style={styles.actionBtn}>
+                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={styles.totals}>
@@ -62,7 +92,6 @@ export default function BudgetCard({ budget }: Props) {
         const pct = item.budgetedAmount > 0
           ? Math.min((actual / item.budgetedAmount) * 100, 100)
           : 0;
-
         const variantAmt = actual - item.budgetedAmount;
 
         return (
@@ -105,9 +134,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
+  titleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
   plotName: { fontSize: 15, fontWeight: '700', color: Colors.text },
   season: {
     fontSize: 12,
@@ -118,6 +148,8 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     fontWeight: '500',
   },
+  headerActions: { flexDirection: 'row', gap: 4 },
+  actionBtn: { padding: 6, borderRadius: 8 },
   totals: {
     flexDirection: 'row',
     gap: Spacing.xl,

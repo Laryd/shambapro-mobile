@@ -23,6 +23,13 @@ interface BudgetItem {
   budgetedAmount: string;
 }
 
+interface InitialData {
+  plotId?: string;
+  season?: string;
+  items?: Array<{ category: string; budgetedAmount: number }>;
+  notes?: string;
+}
+
 interface Props {
   plots: Plot[];
   onSubmit: (data: {
@@ -32,20 +39,28 @@ interface Props {
     notes?: string;
   }) => Promise<void>;
   loading?: boolean;
+  initialData?: InitialData;
 }
 
-export default function BudgetForm({ plots, onSubmit, loading }: Props) {
+export default function BudgetForm({ plots, onSubmit, loading, initialData }: Props) {
   const { t } = useTranslation();
-  const [selectedPlotId, setSelectedPlotId] = useState(plots[0]?._id ?? '');
-  const [items, setItems] = useState<BudgetItem[]>([
-    { category: 'fertilizer', budgetedAmount: '' },
-    { category: 'labor_casual', budgetedAmount: '' },
-  ]);
+  const isEdit = !!initialData;
   const currentYear = new Date().getFullYear();
+
+  const [selectedPlotId, setSelectedPlotId] = useState(
+    initialData?.plotId ?? plots[0]?._id ?? ''
+  );
+  const [items, setItems] = useState<BudgetItem[]>(
+    initialData?.items?.map(i => ({ category: i.category, budgetedAmount: String(i.budgetedAmount) }))
+    ?? [
+      { category: 'fertilizer', budgetedAmount: '' },
+      { category: 'labor_casual', budgetedAmount: '' },
+    ]
+  );
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { season: `${currentYear}/${currentYear + 1}` },
+    defaultValues: { season: initialData?.season ?? `${currentYear}/${currentYear + 1}`, notes: initialData?.notes ?? '' },
   });
 
   function addItem() {
@@ -91,20 +106,24 @@ export default function BudgetForm({ plots, onSubmit, loading }: Props) {
 
   return (
     <View>
-      <Text style={styles.label}>Plot *</Text>
-      <View style={styles.plotList}>
-        {plots.map((p) => (
-          <TouchableOpacity
-            key={p._id}
-            style={[styles.plotBtn, selectedPlotId === p._id && styles.plotActive]}
-            onPress={() => setSelectedPlotId(p._id)}
-          >
-            <Text style={[styles.plotText, selectedPlotId === p._id && styles.plotActiveText]}>
-              {p.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {!isEdit && (
+        <>
+          <Text style={styles.label}>Plot *</Text>
+          <View style={styles.plotList}>
+            {plots.map((p) => (
+              <TouchableOpacity
+                key={p._id}
+                style={[styles.plotBtn, selectedPlotId === p._id && styles.plotActive]}
+                onPress={() => setSelectedPlotId(p._id)}
+              >
+                <Text style={[styles.plotText, selectedPlotId === p._id && styles.plotActiveText]}>
+                  {p.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
       <Controller
         control={control}
@@ -147,7 +166,7 @@ export default function BudgetForm({ plots, onSubmit, loading }: Props) {
       </TouchableOpacity>
 
       <AppButton
-        title={loading ? t('common.loading') : t('budgets.create')}
+        title={loading ? t('common.loading') : isEdit ? t('common.save', { defaultValue: 'Save Changes' }) : t('budgets.create')}
         onPress={handleSubmit(onValid)}
         loading={loading}
         fullWidth
