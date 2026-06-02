@@ -9,19 +9,16 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   harvest: Harvest;
   onDelete?: (id: string) => void;
+  onEdit?: (harvest: Harvest) => void;
 }
 
-export default function HarvestItem({ harvest, onDelete }: Props) {
+export default function HarvestItem({ harvest, onDelete, onEdit }: Props) {
   const { t } = useTranslation();
 
   function confirmDelete() {
     Alert.alert('Delete Harvest', 'Delete this harvest record?', [
       { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => onDelete?.(harvest._id),
-      },
+      { text: t('common.delete'), style: 'destructive', onPress: () => onDelete?.(harvest._id) },
     ]);
   }
 
@@ -46,11 +43,18 @@ export default function HarvestItem({ harvest, onDelete }: Props) {
           <Text style={styles.net}>Net: {formatCurrency(harvest.netReceived)}</Text>
         </View>
       </View>
-      {onDelete ? (
-        <TouchableOpacity onPress={confirmDelete} style={styles.deleteBtn}>
-          <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-        </TouchableOpacity>
-      ) : null}
+      <View style={styles.actions}>
+        {onEdit && (
+          <TouchableOpacity onPress={() => onEdit(harvest)} style={styles.editBtn}>
+            <Ionicons name="pencil-outline" size={15} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
+        {onDelete && (
+          <TouchableOpacity onPress={confirmDelete} style={styles.deleteBtn}>
+            <Ionicons name="trash-outline" size={15} color={Colors.danger} />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -80,5 +84,7 @@ const styles = StyleSheet.create({
   gross: { fontSize: 12, color: Colors.textSecondary },
   deduction: { fontSize: 12, color: Colors.danger },
   net: { fontSize: 13, fontWeight: '600', color: Colors.primary },
-  deleteBtn: { padding: 4, marginTop: 4 },
+  actions: { flexDirection: 'row', gap: 4, marginTop: 4 },
+  editBtn: { padding: 6, borderRadius: 8 },
+  deleteBtn: { padding: 6, borderRadius: 8 },
 });

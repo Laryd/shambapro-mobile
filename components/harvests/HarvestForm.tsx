@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,8 +6,10 @@ import { z } from 'zod';
 import AppInput from '@/components/ui/AppInput';
 import AppButton from '@/components/ui/AppButton';
 import { Colors, Spacing } from '@/constants/colors';
-import { MillDeduction } from '@/types';
-import { MILL_DEDUCTION_NAMES } from '@/constants/categories';
+import { MillDeduction, CropType } from '@/types';
+import {
+  MILL_DEDUCTION_NAMES, CROP_HARVEST_UNITS, CROP_USES_MILL_DEDUCTIONS, CROP_USES_RATOON, CROP_LABELS,
+} from '@/constants/categories';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -24,27 +26,41 @@ type FormData = z.infer<typeof schema>;
 
 interface Props {
   plotId: string;
+  cropType?: CropType;
   onSubmit: (data: {
     plotId: string;
     quantity: number;
-    quantityUnit: 'tons' | 'kg';
+    quantityUnit: string;
     pricePerUnit: number;
     millDeductions: MillDeduction[];
     date: string;
     buyer?: string;
     millStatementRef?: string;
+    ratoonCycle?: number;
     notes?: string;
   }) => Promise<void>;
   loading?: boolean;
 }
 
-export default function HarvestForm({ plotId, onSubmit, loading }: Props) {
+export default function HarvestForm({ plotId, cropType = 'sugarcane', onSubmit, loading }: Props) {
   const { t } = useTranslation();
   const today = new Date().toISOString().slice(0, 10);
-  const [unit, setUnit] = useState<'tons' | 'kg'>('tons');
+
+  const harvestUnits = CROP_HARVEST_UNITS[cropType] ?? ['kg', 'tons'];
+  const usesMillDeductions = CROP_USES_MILL_DEDUCTIONS.has(cropType);
+  const usesRatoon = CROP_USES_RATOON.has(cropType);
+
+  const [unit, setUnit] = useState(harvestUnits[0]);
+  const [ratoonCycle, setRatoonCycle] = useState(0);
   const [deductions, setDeductions] = useState<MillDeduction[]>([]);
   const [newDeductName, setNewDeductName] = useState('');
   const [newDeductAmount, setNewDeductAmount] = useState('');
+
+  // Reset unit when crop type changes
+  useEffect(() => {
+    setUnit(CROP_HARVEST_UNITS[cropType]?.[0] ?? 'kg');
+    if (!usesMillDeductions) setDeductions([]);
+  }, [cropType]);
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -62,10 +78,7 @@ export default function HarvestForm({ plotId, onSubmit, loading }: Props) {
       Alert.alert('Error', 'Enter deduction name and amount');
       return;
     }
-    setDeductions((prev) => [
-      ...prev,
-      { name: newDeductName, amount: Number(newDeductAmount) },
-    ]);
+    setDeductions((prev) => [...prev, { name: newDeductName, amount: Number(newDeductAmount) }]);
     setNewDeductName('');
     setNewDeductAmount('');
   }
@@ -76,26 +89,32 @@ export default function HarvestForm({ plotId, onSubmit, loading }: Props) {
       quantity: Number(vals.quantity),
       quantityUnit: unit,
       pricePerUnit: Number(vals.pricePerUnit),
-      millDeductions: deductions,
+      millDeductions: usesMillDeductions ? deductions : [],
       date: vals.date,
       buyer: vals.buyer,
-      millStatementRef: vals.millStatementRef,
+      millStatementRef: usesMillDeductions ? vals.millStatementRef : undefined,
+      ratoonCycle: usesRatoon ? ratoonCycle : 0,
       notes: vals.notes,
     });
   }
 
   return (
     <View>
-      <View style={styles.unitRow}>
-        {(['tons', 'kg'] as const).map((u) => (
-          <TouchableOpacity
-            key={u}
-            style={[styles.unitBtn, unit === u && styles.unitActive]}
-            onPress={() => setUnit(u)}
-          >
-            <Text style={[styles.unitText, unit === u && styles.unitActiveText]}>{u}</Text>
-          </TouchableOpacity>
-        ))}
+
+      {/* Quantity unit selector */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Unit</Text>
+        <View style={styles.unitRow}>
+          {harvestUnits.map((u) => (
+            <TouchableOpacity
+              key={u}
+              style={[styles.unitBtn, unit === u && styles.unitActive]}
+              onPress={() => setUnit(u)}
+            >
+              <Text style={[styles.unitText, unit === u && styles.unitActiveText]} numberOfLines={1}>{u}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <Controller
@@ -118,11 +137,11 @@ export default function HarvestForm({ plotId, onSubmit, loading }: Props) {
         name="pricePerUnit"
         render={({ field: { onChange, value } }) => (
           <AppInput
-            label={t('harvest.pricePerUnit')}
+            label={`KSH per ${unit}`}
             value={value}
             onChangeText={onChange}
             keyboardType="decimal-pad"
-            placeholder="KSH per ton/kg"
+            placeholder="0"
             error={errors.pricePerUnit?.message}
           />
         )}
@@ -142,84 +161,140 @@ export default function HarvestForm({ plotId, onSubmit, loading }: Props) {
         )}
       />
 
+      {/* Ratoon cycle — sugarcane only */}
+      {usesRatoon && (
+        <View style={styles.field}>
+          <Text style={styles.label}>Ratoon Cycle</Text>
+          <View style={styles.ratoonRow}>
+            {[[0, 'Plant'], [1, 'R1'], [2, 'R2'], [3, 'R3'], [4, 'R4+']].map(([val, lbl]) => (
+              <TouchableOpacity
+                key={String(val)}
+                style={[styles.ratoonBtn, ratoonCycle === val && styles.ratoonBtnActive]}
+                onPress={() => setRatoonCycle(val as number)}
+              >
+                <Text style={[styles.ratoonText, ratoonCycle === val && styles.ratoonTextActive]}>
+                  {lbl}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
       <Controller
         control={control}
         name="buyer"
         render={({ field: { onChange, value } }) => (
           <AppInput
-            label={`${t('harvest.buyer')} (${t('common.optional')})`}
+            label={`${usesMillDeductions ? t('harvest.buyer') : 'Buyer'} (${t('common.optional')})`}
             value={value}
             onChangeText={onChange}
-            placeholder="Mill name"
+            placeholder={usesMillDeductions ? 'Mill name' : 'e.g. NCPB, Trader'}
           />
         )}
       />
 
-      <Controller
-        control={control}
-        name="millStatementRef"
-        render={({ field: { onChange, value } }) => (
-          <AppInput
-            label={`${t('harvest.millRef')} (${t('common.optional')})`}
-            value={value}
-            onChangeText={onChange}
-            placeholder="Reference #"
-          />
-        )}
-      />
-
-      <Text style={styles.sectionTitle}>{t('harvest.deductions')}</Text>
-      {deductions.map((d, i) => (
-        <View key={i} style={styles.deductRow}>
-          <Text style={styles.deductName} numberOfLines={1}>{d.name}</Text>
-          <Text style={styles.deductAmount}>-KSH {d.amount.toLocaleString()}</Text>
-          <TouchableOpacity
-            onPress={() => setDeductions((prev) => prev.filter((_, j) => j !== i))}
-          >
-            <Ionicons name="close-circle" size={18} color={Colors.danger} />
-          </TouchableOpacity>
-        </View>
-      ))}
-
-      <View style={styles.addDeductRow}>
-        <AppInput
-          placeholder="Deduction name"
-          value={newDeductName}
-          onChangeText={setNewDeductName}
-          containerStyle={{ flex: 2 }}
+      {/* Mill statement ref — sugarcane only */}
+      {usesMillDeductions && (
+        <Controller
+          control={control}
+          name="millStatementRef"
+          render={({ field: { onChange, value } }) => (
+            <AppInput
+              label={`${t('harvest.millRef')} (${t('common.optional')})`}
+              value={value}
+              onChangeText={onChange}
+              placeholder="Reference #"
+            />
+          )}
         />
-        <AppInput
-          placeholder="Amount"
-          value={newDeductAmount}
-          onChangeText={setNewDeductAmount}
-          keyboardType="decimal-pad"
-          containerStyle={{ flex: 1 }}
-        />
-        <TouchableOpacity onPress={addDeduction} style={styles.addBtn}>
-          <Ionicons name="add-circle" size={28} color={Colors.primary} />
-        </TouchableOpacity>
-      </View>
+      )}
 
-      {gross > 0 ? (
+      {/* Mill deductions — sugarcane only */}
+      {usesMillDeductions && (
+        <>
+          <Text style={styles.sectionTitle}>{t('harvest.deductions')}</Text>
+
+          {/* Preset quick-add */}
+          <View style={styles.presetRow}>
+            {MILL_DEDUCTION_NAMES.slice(0, -1).map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={styles.presetChip}
+                onPress={() => setNewDeductName(n)}
+              >
+                <Text style={styles.presetChipText}>+ {n}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {deductions.map((d, i) => (
+            <View key={i} style={styles.deductRow}>
+              <Text style={styles.deductName} numberOfLines={1}>{d.name}</Text>
+              <Text style={styles.deductAmount}>-KSH {d.amount.toLocaleString()}</Text>
+              <TouchableOpacity onPress={() => setDeductions((prev) => prev.filter((_, j) => j !== i))}>
+                <Ionicons name="close-circle" size={18} color={Colors.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          <View style={styles.addDeductRow}>
+            <AppInput
+              placeholder="Deduction name"
+              value={newDeductName}
+              onChangeText={setNewDeductName}
+              containerStyle={{ flex: 2 }}
+            />
+            <AppInput
+              placeholder="Amount"
+              value={newDeductAmount}
+              onChangeText={setNewDeductAmount}
+              keyboardType="decimal-pad"
+              containerStyle={{ flex: 1 }}
+            />
+            <TouchableOpacity onPress={addDeduction} style={styles.addBtn}>
+              <Ionicons name="add-circle" size={28} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {/* Live summary */}
+      {gross > 0 && (
         <View style={styles.summary}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('harvest.gross')}</Text>
             <Text style={styles.summaryValue}>KSH {gross.toLocaleString()}</Text>
           </View>
-          {totalDeductions > 0 ? (
+          {usesMillDeductions && totalDeductions > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{t('harvest.totalDeductions')}</Text>
               <Text style={[styles.summaryValue, { color: Colors.danger }]}>
                 -KSH {totalDeductions.toLocaleString()}
               </Text>
             </View>
-          ) : null}
+          )}
           <View style={[styles.summaryRow, styles.summaryNetRow]}>
             <Text style={styles.summaryNetLabel}>{t('harvest.netReceived')}</Text>
             <Text style={styles.summaryNetValue}>KSH {net.toLocaleString()}</Text>
           </View>
         </View>
-      ) : null}
+      )}
+
+      <Controller
+        control={control}
+        name="notes"
+        render={({ field: { onChange, value } }) => (
+          <AppInput
+            label={`Notes (${t('common.optional')})`}
+            value={value}
+            onChangeText={onChange}
+            placeholder="Additional notes…"
+            multiline
+            numberOfLines={2}
+          />
+        )}
+      />
 
       <AppButton
         title={loading ? t('common.loading') : t('harvest.record')}
@@ -233,28 +308,47 @@ export default function HarvestForm({ plotId, onSubmit, loading }: Props) {
 }
 
 const styles = StyleSheet.create({
-  unitRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
+  field: { marginBottom: Spacing.md },
+  label: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary, marginBottom: 6 },
+  unitRow: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
   unitBtn: {
-    flex: 1,
     paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: Colors.border,
     alignItems: 'center',
   },
   unitActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
-  unitText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  unitText: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
   unitActiveText: { color: Colors.primary },
+  ratoonRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  ratoonBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  ratoonBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
+  ratoonText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
+  ratoonTextActive: { color: Colors.primary },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textSecondary,
     marginBottom: Spacing.sm,
   },
+  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: Spacing.sm },
+  presetChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  presetChipText: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
   deductRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -280,10 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     gap: Spacing.sm,
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { fontSize: 13, color: Colors.textMuted },
   summaryValue: { fontSize: 13, fontWeight: '600', color: Colors.text },
   summaryNetRow: {
