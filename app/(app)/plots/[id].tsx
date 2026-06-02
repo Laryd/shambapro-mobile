@@ -30,7 +30,8 @@ import { getExpenses, createExpense, updateExpense, deleteExpense } from '@/lib/
 import { getHarvests, createHarvest, deleteHarvest } from '@/lib/api/harvests';
 import { formatCurrency, formatDate, getRatoonLabel, getProfitColor } from '@/lib/utils';
 import { Colors, Spacing } from '@/constants/colors';
-import { Expense } from '@/types';
+import { Expense, CropType } from '@/types';
+import { CROP_LABELS, CROP_EMOJI, CROP_USES_RATOON } from '@/constants/categories';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -44,6 +45,7 @@ export default function PlotDetailScreen() {
   const [harvestModal, setHarvestModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingHarvest, setEditingHarvest] = useState<import('@/types').Harvest | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { data: plot, isLoading: plotLoading, refetch: refetchPlot } = useQuery({
@@ -72,6 +74,9 @@ export default function PlotDetailScreen() {
   }
 
   if (plotLoading || !plot) return <LoadingScreen />;
+
+  const cropType: CropType = plot.cropType ?? 'sugarcane';
+  const usesRatoon = CROP_USES_RATOON.has(cropType);
 
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalRevenue = (harvests ?? []).reduce((s, h) => s + h.netReceived, 0);
@@ -109,6 +114,22 @@ export default function PlotDetailScreen() {
       setHarvestModal(false);
       refetchHarvests();
       refetchPlot();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleEditHarvest(data: Parameters<typeof createHarvest>[0]) {
+    if (!editingHarvest) return;
+    setSubmitting(true);
+    try {
+      const { updateHarvest } = await import('@/lib/api/harvests');
+      await updateHarvest(editingHarvest._id, data);
+      setEditingHarvest(null);
+      refetchHarvests();
+      refetchPlot();
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update harvest');
     } finally {
       setSubmitting(false);
     }
@@ -204,10 +225,17 @@ export default function PlotDetailScreen() {
                 <Text style={styles.metaValue}>{formatDate(plot.plantingDate)}</Text>
               </View>
               <View style={styles.metaItem}>
-                <Ionicons name="reload-outline" size={14} color={Colors.textMuted} />
-                <Text style={styles.metaLabel}>Cycle</Text>
-                <Text style={styles.metaValue}>{getRatoonLabel(plot.ratoonCycle)}</Text>
+                <Ionicons name="leaf-outline" size={14} color={Colors.textMuted} />
+                <Text style={styles.metaLabel}>Crop</Text>
+                <Text style={styles.metaValue}>{CROP_EMOJI[cropType]} {CROP_LABELS[cropType]}</Text>
               </View>
+              {usesRatoon && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="reload-outline" size={14} color={Colors.textMuted} />
+                  <Text style={styles.metaLabel}>Cycle</Text>
+                  <Text style={styles.metaValue}>{getRatoonLabel(plot.ratoonCycle)}</Text>
+                </View>
+              )}
               {plot.expectedHarvestDate ? (
                 <View style={styles.metaItem}>
                   <Ionicons name="cut-outline" size={14} color={Colors.textMuted} />
@@ -313,6 +341,7 @@ export default function PlotDetailScreen() {
                     <HarvestItem
                       key={h._id}
                       harvest={h}
+                      onEdit={(harvest) => setEditingHarvest(harvest)}
                       onDelete={async (hid) => {
                         await deleteHarvest(hid);
                         refetchHarvests();
@@ -339,7 +368,7 @@ export default function PlotDetailScreen() {
         onClose={() => setHarvestModal(false)}
         title={t('harvest.record')}
       >
-        <HarvestForm plotId={id!} onSubmit={handleAddHarvest} loading={submitting} />
+        <HarvestForm plotId={id!} cropType={plot.cropType} onSubmit={handleAddHarvest} loading={submitting} />
       </AppModal>
 
       <AppModal
@@ -369,6 +398,21 @@ export default function PlotDetailScreen() {
               unit: editingExpense.unit,
               notes: editingExpense.notes,
             }}
+          />
+        ) : null}
+      </AppModal>
+
+      <AppModal
+        visible={!!editingHarvest}
+        onClose={() => setEditingHarvest(null)}
+        title="Edit Harvest"
+      >
+        {editingHarvest ? (
+          <HarvestForm
+            plotId={id!}
+            cropType={plot.cropType}
+            onSubmit={handleEditHarvest}
+            loading={submitting}
           />
         ) : null}
       </AppModal>
