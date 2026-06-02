@@ -19,6 +19,8 @@ export interface User {
   createdAt?: string;
 }
 
+export type CropType = 'sugarcane' | 'maize' | 'groundnuts' | 'beans' | 'sorghum' | 'millet' | 'other';
+
 export interface Plot {
   _id: string;
   userId: string;
@@ -27,6 +29,7 @@ export interface Plot {
   location?: string;
   area: number;
   areaUnit: 'acres' | 'hectares';
+  cropType: CropType;
   variety: string;
   plantingDate: string;
   expectedHarvestDate?: string;
@@ -66,7 +69,7 @@ export interface Harvest {
   userId: string;
   plotId: string;
   quantity: number;
-  quantityUnit: 'tons' | 'kg';
+  quantityUnit: string;
   pricePerUnit: number;
   grossAmount: number;
   millDeductions: MillDeduction[];
