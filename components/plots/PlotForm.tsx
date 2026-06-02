@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,10 +6,11 @@ import { z } from 'zod';
 import AppInput from '@/components/ui/AppInput';
 import AppButton from '@/components/ui/AppButton';
 import { Colors, Spacing } from '@/constants/colors';
-import { SUGARCANE_VARIETIES } from '@/constants/categories';
+import {
+  CROP_TYPES, CROP_LABELS, CROP_EMOJI, CROP_VARIETIES, CROP_USES_RATOON,
+} from '@/constants/categories';
 import { useTranslation } from 'react-i18next';
-import { Plot } from '@/types';
-import { useState } from 'react';
+import { Plot, CropType } from '@/types';
 
 const schema = z.object({
   name: z.string().min(1, 'Plot name is required'),
@@ -32,6 +33,7 @@ interface Props {
     location?: string;
     area: number;
     areaUnit: 'acres' | 'hectares';
+    cropType: CropType;
     variety: string;
     plantingDate: string;
     expectedHarvestDate?: string;
@@ -49,8 +51,24 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
   const [areaUnit, setAreaUnit] = useState<'acres' | 'hectares'>(
     initialData?.areaUnit ?? 'acres'
   );
-  const [variety, setVariety] = useState(initialData?.variety ?? SUGARCANE_VARIETIES[0]);
+  const [cropType, setCropType] = useState<CropType>(
+    initialData?.cropType ?? 'sugarcane'
+  );
+
+  const varieties = CROP_VARIETIES[cropType];
+  const usesRatoon = CROP_USES_RATOON.has(cropType);
+
+  const [variety, setVariety] = useState(
+    initialData?.variety ?? varieties[0]
+  );
   const [showVarietyList, setShowVarietyList] = useState(false);
+
+  // Reset variety when crop type changes
+  const handleCropTypeChange = (ct: CropType) => {
+    setCropType(ct);
+    setVariety(CROP_VARIETIES[ct][0]);
+    setShowVarietyList(false);
+  };
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -60,7 +78,7 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
       name: initialData?.name ?? '',
       location: initialData?.location ?? '',
       area: initialData?.area?.toString() ?? '',
-      variety: initialData?.variety ?? SUGARCANE_VARIETIES[0],
+      variety: initialData?.variety ?? varieties[0],
       plantingDate: initialData?.plantingDate
         ? initialData.plantingDate.slice(0, 10)
         : today,
@@ -78,11 +96,12 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
       location: vals.location || undefined,
       area: Number(vals.area),
       areaUnit,
+      cropType,
       variety,
       plantingDate: vals.plantingDate,
       expectedHarvestDate: vals.expectedHarvestDate || undefined,
       landLeaseAmount: vals.landLeaseAmount ? Number(vals.landLeaseAmount) : undefined,
-      ratoonCycle: vals.ratoonCycle ? Number(vals.ratoonCycle) : 0,
+      ratoonCycle: usesRatoon && vals.ratoonCycle ? Number(vals.ratoonCycle) : 0,
       seasonBudget: vals.seasonBudget ? Number(vals.seasonBudget) : undefined,
       notes: vals.notes || undefined,
     });
@@ -90,6 +109,26 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
 
   return (
     <View>
+
+      {/* Crop Type selector */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Crop Type *</Text>
+        <View style={styles.cropGrid}>
+          {CROP_TYPES.map((ct) => (
+            <TouchableOpacity
+              key={ct}
+              style={[styles.cropBtn, cropType === ct && styles.cropBtnActive]}
+              onPress={() => handleCropTypeChange(ct)}
+            >
+              <Text style={styles.cropEmoji}>{CROP_EMOJI[ct]}</Text>
+              <Text style={[styles.cropLabel, cropType === ct && styles.cropLabelActive]} numberOfLines={1}>
+                {CROP_LABELS[ct].replace(' (Wimbi)', '')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <Controller
         control={control}
         name="name"
@@ -151,8 +190,9 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
         </View>
       </View>
 
+      {/* Variety — adapts to crop type */}
       <View style={styles.field}>
-        <Text style={styles.label}>{t('plots.variety')} *</Text>
+        <Text style={styles.label}>{CROP_LABELS[cropType]} Variety *</Text>
         <TouchableOpacity
           style={styles.selector}
           onPress={() => setShowVarietyList((v) => !v)}
@@ -161,7 +201,7 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
         </TouchableOpacity>
         {showVarietyList ? (
           <View style={styles.varietyList}>
-            {SUGARCANE_VARIETIES.map((v) => (
+            {varieties.map((v) => (
               <TouchableOpacity
                 key={v}
                 style={[styles.varietyItem, v === variety && styles.varietyActive]}
@@ -205,6 +245,32 @@ export default function PlotForm({ onSubmit, loading, initialData }: Props) {
           />
         )}
       />
+
+      {/* Ratoon cycle — sugarcane only */}
+      {usesRatoon && (
+        <View style={styles.field}>
+          <Text style={styles.label}>Crop Cycle</Text>
+          <View style={styles.ratoonRow}>
+            {[['0', 'Plant Cane'], ['1', 'Ratoon 1'], ['2', 'Ratoon 2'], ['3', 'Ratoon 3'], ['4', 'Ratoon 4+']].map(([val, lbl]) => (
+              <Controller
+                key={val}
+                control={control}
+                name="ratoonCycle"
+                render={({ field: { onChange, value } }) => (
+                  <TouchableOpacity
+                    style={[styles.ratoonBtn, value === val && styles.ratoonBtnActive]}
+                    onPress={() => onChange(val)}
+                  >
+                    <Text style={[styles.ratoonText, value === val && styles.ratoonTextActive]} numberOfLines={1}>
+                      {lbl}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            ))}
+          </View>
+        </View>
+      )}
 
       <Controller
         control={control}
@@ -300,4 +366,37 @@ const styles = StyleSheet.create({
   varietyActive: { backgroundColor: Colors.primaryLight },
   varietyText: { fontSize: 14, color: Colors.text },
   varietyActiveText: { color: Colors.primaryDark, fontWeight: '600' },
+  cropGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  cropBtn: {
+    width: '30%',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    gap: 2,
+  },
+  cropBtnActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  cropEmoji: { fontSize: 22 },
+  cropLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, textAlign: 'center' },
+  cropLabelActive: { color: Colors.primaryDark },
+  ratoonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  ratoonBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  ratoonBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
+  ratoonText: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
+  ratoonTextActive: { color: Colors.primary },
 });

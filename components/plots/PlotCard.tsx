@@ -5,8 +5,9 @@ import { useRouter } from 'expo-router';
 import AppCard from '@/components/ui/AppCard';
 import AppBadge from '@/components/ui/AppBadge';
 import { Colors, Spacing } from '@/constants/colors';
-import { Plot } from '@/types';
+import { Plot, CropType } from '@/types';
 import { formatDate, getRatoonLabel } from '@/lib/utils';
+import { CROP_LABELS, CROP_EMOJI, CROP_USES_RATOON } from '@/constants/categories';
 
 interface Props {
   plot: Plot;
@@ -20,6 +21,8 @@ function statusVariant(status: string) {
 
 export default function PlotCard({ plot }: Props) {
   const router = useRouter();
+  const cropType: CropType = plot.cropType ?? 'sugarcane';
+  const usesRatoon = CROP_USES_RATOON.has(cropType);
 
   return (
     <TouchableOpacity
@@ -29,8 +32,11 @@ export default function PlotCard({ plot }: Props) {
       <AppCard style={styles.card}>
         <View style={styles.topRow}>
           <View style={styles.titleWrap}>
-            <Text style={styles.name} numberOfLines={1}>{plot.name}</Text>
-            <Text style={styles.code}>{plot.plotCode}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.cropEmoji}>{CROP_EMOJI[cropType]}</Text>
+              <Text style={styles.name} numberOfLines={1}>{plot.name}</Text>
+            </View>
+            <Text style={styles.code}>{plot.plotCode} · {CROP_LABELS[cropType]}</Text>
           </View>
           <AppBadge
             label={plot.status}
@@ -60,7 +66,9 @@ export default function PlotCard({ plot }: Props) {
             <Ionicons name="calendar-outline" size={13} color={Colors.textLight} />
             <Text style={styles.dateText}>Planted {formatDate(plot.plantingDate)}</Text>
           </View>
-          <Text style={styles.ratoon}>{getRatoonLabel(plot.ratoonCycle)}</Text>
+          {usesRatoon && (
+            <Text style={styles.ratoon}>{getRatoonLabel(plot.ratoonCycle)}</Text>
+          )}
         </View>
       </AppCard>
     </TouchableOpacity>
@@ -76,7 +84,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   titleWrap: { flex: 1, marginRight: Spacing.sm },
-  name: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cropEmoji: { fontSize: 18 },
+  name: { fontSize: 16, fontWeight: '700', color: Colors.text, flex: 1 },
   code: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   metaRow: {
     flexDirection: 'row',
