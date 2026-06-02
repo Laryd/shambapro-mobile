@@ -6,8 +6,8 @@ import { z } from 'zod';
 import AppInput from '@/components/ui/AppInput';
 import AppButton from '@/components/ui/AppButton';
 import { Colors, Spacing } from '@/constants/colors';
-import { EXPENSE_CATEGORIES, COMMON_EXPENSE_UNITS } from '@/constants/categories';
-import { Plot } from '@/types';
+import { getCropCategories, CROP_LABELS } from '@/constants/categories';
+import { Plot, CropType } from '@/types';
 import { useTranslation } from 'react-i18next';
 
 const schema = z.object({
@@ -53,23 +53,26 @@ interface Props {
 export default function ExpenseForm({ onSubmit, plots, initialPlotId, initialData, submitLabel, loading }: Props) {
   const { t } = useTranslation();
 
-  const resolveInitialCategory = (): typeof EXPENSE_CATEGORIES[number] => {
+  const [selectedPlotId, setSelectedPlotId] = useState(initialData?.plotId ?? initialPlotId ?? '');
+  const [useCustom, setUseCustom] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
+  const [showCategoryList, setShowCategoryList] = useState(false);
+  const [showPlotList, setShowPlotList] = useState(false);
+
+  const selectedPlot = plots?.find((p) => p._id === selectedPlotId);
+  const cropType: CropType = (selectedPlot?.cropType ?? 'sugarcane') as CropType;
+  const CATEGORIES = getCropCategories(cropType);
+
+  const resolveInitialCategory = () => {
     const cat = initialData?.category;
-    if (cat && (EXPENSE_CATEGORIES as readonly string[]).includes(cat)) {
-      return cat as typeof EXPENSE_CATEGORIES[number];
+    if (cat) {
+      const found = CATEGORIES.find(c => c.value === cat);
+      return found?.value ?? CATEGORIES[0].value;
     }
-    return EXPENSE_CATEGORIES[0];
+    return CATEGORIES[0].value;
   };
 
-  const [category, setCategory] = useState<typeof EXPENSE_CATEGORIES[number]>(resolveInitialCategory());
-  const [useCustom, setUseCustom] = useState(
-    !!(initialData?.category && !(EXPENSE_CATEGORIES as readonly string[]).includes(initialData.category))
-  );
-  const [customCategory, setCustomCategory] = useState(
-    useCustom ? (initialData?.category ?? '') : ''
-  );
-  const [selectedPlotId, setSelectedPlotId] = useState(initialData?.plotId ?? initialPlotId ?? '');
-  const [showCategoryList, setShowCategoryList] = useState(false);
+  const [category, setCategory] = useState(resolveInitialCategory());
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -103,8 +106,56 @@ export default function ExpenseForm({ onSubmit, plots, initialPlotId, initialDat
     });
   }
 
+  const selectedCategoryLabel = CATEGORIES.find(c => c.value === category)?.label ?? category;
+
   return (
     <View>
+      {/* Plot picker */}
+      {plots && plots.length > 0 && (
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('expenses.plot')}</Text>
+          <TouchableOpacity
+            style={styles.selector}
+            onPress={() => setShowPlotList((v) => !v)}
+          >
+            <Text style={styles.selectorText}>
+              {selectedPlotId
+                ? plots.find((p) => p._id === selectedPlotId)?.name ?? 'Select plot'
+                : 'No specific plot'}
+            </Text>
+          </TouchableOpacity>
+          {showPlotList && (
+            <View style={styles.listBox}>
+              <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
+                <TouchableOpacity
+                  style={styles.listItem}
+                  onPress={() => { setSelectedPlotId(''); setShowPlotList(false); }}
+                >
+                  <Text style={styles.listItemText}>No specific plot</Text>
+                </TouchableOpacity>
+                {plots.map((p) => (
+                  <TouchableOpacity
+                    key={p._id}
+                    style={[styles.listItem, p._id === selectedPlotId && styles.listItemActive]}
+                    onPress={() => { setSelectedPlotId(p._id); setShowPlotList(false); }}
+                  >
+                    <Text style={[styles.listItemText, p._id === selectedPlotId && styles.listItemActiveText]}>
+                      {p.name} · {CROP_LABELS[p.cropType as CropType] ?? p.cropType}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          {selectedPlot && (
+            <Text style={styles.hint}>
+              Showing categories for {CROP_LABELS[cropType]}
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Category toggle */}
       <View style={styles.row}>
         <Text style={styles.label}>{t('expenses.usePreset')}</Text>
         <Switch
@@ -121,30 +172,28 @@ export default function ExpenseForm({ onSubmit, plots, initialPlotId, initialDat
             style={styles.selector}
             onPress={() => setShowCategoryList((v) => !v)}
           >
-            <Text style={styles.selectorText}>
-              {t(`cat.${category}`, { defaultValue: category })}
-            </Text>
+            <Text style={styles.selectorText}>{selectedCategoryLabel}</Text>
           </TouchableOpacity>
-          {showCategoryList ? (
-            <View style={styles.categoryList}>
-              <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                {EXPENSE_CATEGORIES.map((cat) => (
+          {showCategoryList && (
+            <View style={styles.listBox}>
+              <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
+                {CATEGORIES.map((cat) => (
                   <TouchableOpacity
-                    key={cat}
-                    style={[styles.catItem, cat === category && styles.catItemActive]}
+                    key={cat.value}
+                    style={[styles.listItem, cat.value === category && styles.listItemActive]}
                     onPress={() => {
-                      setCategory(cat);
+                      setCategory(cat.value);
                       setShowCategoryList(false);
                     }}
                   >
-                    <Text style={[styles.catItemText, cat === category && styles.catItemActiveText]}>
-                      {t(`cat.${cat}`, { defaultValue: cat })}
+                    <Text style={[styles.listItemText, cat.value === category && styles.listItemActiveText]}>
+                      {cat.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
-          ) : null}
+          )}
         </View>
       ) : (
         <AppInput
@@ -228,27 +277,6 @@ export default function ExpenseForm({ onSubmit, plots, initialPlotId, initialDat
         )}
       />
 
-      {plots && plots.length > 0 ? (
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('expenses.plot')}</Text>
-          <TouchableOpacity
-            style={styles.selector}
-            onPress={() => {
-              const ids = ['', ...plots.map((p) => p._id)];
-              const labels = ['No plot', ...plots.map((p) => p.name)];
-              const cur = ids.indexOf(selectedPlotId);
-              setSelectedPlotId(ids[(cur + 1) % ids.length]);
-            }}
-          >
-            <Text style={styles.selectorText}>
-              {selectedPlotId
-                ? plots.find((p) => p._id === selectedPlotId)?.name ?? 'Select'
-                : 'No specific plot'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
       <Controller
         control={control}
         name="notes"
@@ -284,6 +312,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   label: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary, marginBottom: 6 },
+  hint: { fontSize: 12, color: Colors.textMuted, marginTop: 4 },
   field: { marginBottom: Spacing.md },
   twoCol: { flexDirection: 'row', gap: Spacing.md },
   selector: {
@@ -295,20 +324,20 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md - 2,
   },
   selectorText: { fontSize: 15, color: Colors.text },
-  categoryList: {
+  listBox: {
     marginTop: 4,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 10,
     backgroundColor: Colors.surface,
   },
-  catItem: {
+  listItem: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
-  catItemActive: { backgroundColor: Colors.primaryLight },
-  catItemText: { fontSize: 14, color: Colors.text },
-  catItemActiveText: { color: Colors.primaryDark, fontWeight: '600' },
+  listItemActive: { backgroundColor: Colors.primaryLight },
+  listItemText: { fontSize: 14, color: Colors.text },
+  listItemActiveText: { color: Colors.primaryDark, fontWeight: '600' },
 });
