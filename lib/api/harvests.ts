@@ -4,7 +4,7 @@ import { Harvest, MillDeduction } from '@/types';
 export interface CreateHarvestPayload {
   plotId: string;
   quantity: number;
-  quantityUnit: 'tons' | 'kg';
+  quantityUnit: string;
   pricePerUnit: number;
   millDeductions: MillDeduction[];
   date: string;

@@ -1,11 +1,12 @@
 import apiClient from './client';
-import { Plot } from '@/types';
+import { Plot, CropType } from '@/types';
 
 export interface CreatePlotPayload {
   name: string;
   location?: string;
   area: number;
   areaUnit: 'acres' | 'hectares';
+  cropType?: CropType;
   variety: string;
   plantingDate: string;
   expectedHarvestDate?: string;
