@@ -14,7 +14,13 @@ export interface AdminUser {
   createdAt: string;
 }
 
-export async function getAdminSettings(): Promise<{ paymentsDisabled: boolean }> {
+export interface AdminSettings {
+  paymentsDisabled: boolean;
+  monthlyPrice: number;
+  yearlyPrice: number;
+}
+
+export async function getAdminSettings(): Promise<AdminSettings> {
   const { data } = await apiClient.get('/api/admin/settings');
   return data.data;
 }
@@ -24,9 +30,9 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
   return data.data;
 }
 
-export async function updateAdminSettings(settings: {
-  paymentsDisabled: boolean;
-}): Promise<void> {
+export async function updateAdminSettings(
+  settings: Partial<AdminSettings>
+): Promise<void> {
   await apiClient.patch('/api/admin/settings', settings);
 }
 
