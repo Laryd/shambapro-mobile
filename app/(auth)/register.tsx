@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -21,6 +22,7 @@ import AppInput from '@/components/ui/AppInput';
 import AppButton from '@/components/ui/AppButton';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 import { register } from '@/lib/api/auth';
+import { getPublicSettings } from '@/lib/api/settings';
 import { useAuthStore } from '@/store/authStore';
 import { Colors, Spacing } from '@/constants/colors';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +61,12 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: getPublicSettings,
+  });
+  const paymentsDisabled = settings?.paymentsDisabled ?? false;
 
   async function handleGoogleSignIn() {
     setGoogleLoading(true);
@@ -145,7 +153,9 @@ export default function RegisterScreen() {
 
         <View style={styles.card}>
           <Text style={styles.title}>{t('auth.createAccount')}</Text>
-          <Text style={styles.subtitle}>{t('pricing.trialNote')}</Text>
+          {!paymentsDisabled && (
+            <Text style={styles.subtitle}>{t('pricing.trialNote')}</Text>
+          )}
 
           <TouchableOpacity
             style={styles.googleBtn}
