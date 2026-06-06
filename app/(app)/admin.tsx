@@ -98,6 +98,9 @@ export default function AdminScreen() {
   const router = useRouter();
 
   const [paymentsDisabled, setPaymentsDisabled] = useState(false);
+  const [monthlyPrice, setMonthlyPrice] = useState('120');
+  const [yearlyPrice, setYearlyPrice] = useState('1200');
+  const [savingPrices, setSavingPrices] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [exemptModal, setExemptModal] = useState(false);
@@ -119,6 +122,8 @@ export default function AdminScreen() {
   useEffect(() => {
     if (settings !== undefined) {
       setPaymentsDisabled(settings.paymentsDisabled);
+      setMonthlyPrice(String(settings.monthlyPrice ?? 120));
+      setYearlyPrice(String(settings.yearlyPrice ?? 1200));
     }
   }, [settings]);
 
@@ -135,6 +140,27 @@ export default function AdminScreen() {
     } catch (err: unknown) {
       setPaymentsDisabled(!val);
       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update settings');
+    }
+  }
+
+  async function handleSavePrices() {
+    const monthly = Number(monthlyPrice);
+    const yearly = Number(yearlyPrice);
+    if (!Number.isFinite(monthly) || monthly < 0 || !Number.isFinite(yearly) || yearly < 0) {
+      Alert.alert('Invalid price', 'Enter valid, non-negative amounts');
+      return;
+    }
+    setSavingPrices(true);
+    try {
+      await updateAdminSettings({
+        monthlyPrice: Math.round(monthly),
+        yearlyPrice: Math.round(yearly),
+      });
+      Alert.alert('Saved', 'Subscription prices updated');
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update prices');
+    } finally {
+      setSavingPrices(false);
     }
   }
 
@@ -202,6 +228,44 @@ export default function AdminScreen() {
                 </Text>
               </View>
             )}
+          </AppCard>
+
+          <AppCard style={styles.settingsCard}>
+            <Text style={styles.settingLabel}>Subscription Prices (KSH)</Text>
+            <Text style={styles.settingNote}>
+              Amounts charged via M-Pesa for each plan.
+            </Text>
+            <View style={styles.priceRow}>
+              <View style={styles.priceField}>
+                <Text style={styles.priceFieldLabel}>Monthly</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  value={monthlyPrice}
+                  onChangeText={setMonthlyPrice}
+                  keyboardType="number-pad"
+                  placeholder="120"
+                  placeholderTextColor={Colors.textLight}
+                />
+              </View>
+              <View style={styles.priceField}>
+                <Text style={styles.priceFieldLabel}>Yearly</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  value={yearlyPrice}
+                  onChangeText={setYearlyPrice}
+                  keyboardType="number-pad"
+                  placeholder="1200"
+                  placeholderTextColor={Colors.textLight}
+                />
+              </View>
+            </View>
+            <AppButton
+              title={savingPrices ? 'Saving…' : 'Save Prices'}
+              onPress={handleSavePrices}
+              loading={savingPrices}
+              fullWidth
+              style={styles.savePricesBtn}
+            />
           </AppCard>
 
           <View style={styles.usersHeader}>
@@ -358,6 +422,20 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   freeNoticeText: { fontSize: 12, color: Colors.primary, fontWeight: '500', flex: 1 },
+  priceRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
+  priceField: { flex: 1 },
+  priceFieldLabel: { fontSize: 12, color: Colors.textMuted, marginBottom: 4 },
+  priceInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  savePricesBtn: { marginTop: Spacing.md },
   usersHeader: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.textSecondary },
   searchWrap: {
