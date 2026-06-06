@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import AppButton from '@/components/ui/AppButton';
 import AppCard from '@/components/ui/AppCard';
 import { getSubscription, initiateMpesaPayment, checkPaymentStatus } from '@/lib/api/subscription';
+import { getPublicSettings } from '@/lib/api/settings';
 import { useAuthStore } from '@/store/authStore';
 import { daysLeft, formatDate } from '@/lib/utils';
 import { Colors, Spacing } from '@/constants/colors';
@@ -43,6 +44,20 @@ export default function PricingScreen() {
     queryKey: ['subscription'],
     queryFn: getSubscription,
   });
+
+  const { data: settings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: getPublicSettings,
+  });
+
+  // Prices are admin-configurable, so derive displayed amounts from settings.
+  const monthlyPrice    = settings?.monthlyPrice ?? 120;
+  const yearlyPrice     = settings?.yearlyPrice ?? 1200;
+  const monthlyTotal    = monthlyPrice * 12;
+  const yearlySavings   = Math.max(0, monthlyTotal - yearlyPrice);
+  const effectiveMonthly = Math.round(yearlyPrice / 12);
+  const yearlySavingsPct = monthlyTotal > 0 ? Math.round((yearlySavings / monthlyTotal) * 100) : 0;
+  const priceAmount     = (plan === 'monthly' ? monthlyPrice : yearlyPrice).toLocaleString();
 
   const days = daysLeft(sub?.trialEndsAt);
   const FREE_PLANS = ['admin', 'free', 'exempt', 'legacy'];
@@ -168,9 +183,9 @@ export default function PricingScreen() {
                   <Text style={[styles.planText, plan === p && styles.planActiveText]}>
                     {t(`pricing.${p}`)}
                   </Text>
-                  {p === 'yearly' ? (
+                  {p === 'yearly' && yearlySavingsPct > 0 ? (
                     <Text style={[styles.saveBadge, plan === p && styles.saveBadgeActive]}>
-                      {t('pricing.save')}
+                      {t('pricing.savePct', { pct: yearlySavingsPct })}
                     </Text>
                   ) : null}
                 </TouchableOpacity>
@@ -179,14 +194,14 @@ export default function PricingScreen() {
 
             <AppCard style={styles.priceCard}>
               <Text style={styles.priceAmount}>
-                KSH {plan === 'monthly' ? '120' : '1,200'}
+                KSH {priceAmount}
               </Text>
               <Text style={styles.pricePeriod}>
                 per {plan === 'monthly' ? 'month' : 'year'}
               </Text>
-              {plan === 'yearly' ? (
+              {plan === 'yearly' && yearlySavings > 0 ? (
                 <Text style={styles.priceNote}>
-                  Only KSH 100/month — save KSH 240/year
+                  Only KSH {effectiveMonthly.toLocaleString()}/month — save KSH {yearlySavings.toLocaleString()}/year
                 </Text>
               ) : null}
 
