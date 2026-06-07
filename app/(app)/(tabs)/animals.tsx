@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { getHerds } from '@/lib/api/animals';
 import { AnimalHerd } from '@/types';
 import { ANIMAL_EMOJI, ANIMAL_LABELS, ANIMAL_PURPOSE_LABELS } from '@/constants/animals';
@@ -14,6 +15,7 @@ import { Colors, Spacing, Radius, Shadow } from '@/constants/colors';
 
 function HerdCard({ herd }: { herd: AnimalHerd }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const emoji = ANIMAL_EMOJI[herd.animalType] ?? '🐾';
   const label = ANIMAL_LABELS[herd.animalType] ?? herd.animalType;
 
@@ -41,7 +43,7 @@ function HerdCard({ herd }: { herd: AnimalHerd }) {
       <View style={styles.cardMeta}>
         <View style={styles.metaItem}>
           <Ionicons name="people-outline" size={13} color={Colors.textMuted} />
-          <Text style={styles.metaText}>{herd.currentCount} animals</Text>
+          <Text style={styles.metaText}>{t('animals.count', { count: herd.currentCount })}</Text>
         </View>
         <View style={styles.metaItem}>
           <Ionicons name="pricetag-outline" size={13} color={Colors.textMuted} />
@@ -68,6 +70,7 @@ function HerdCard({ herd }: { herd: AnimalHerd }) {
 export default function AnimalsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'sold' | 'archived'>('all');
 
@@ -90,13 +93,13 @@ export default function AnimalsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>🐾 Animals</Text>
+        <Text style={styles.title}>🐾 {t('nav.animals')}</Text>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => router.push('/(app)/animals/new' as any)}
         >
           <Ionicons name="add" size={20} color={Colors.white} />
-          <Text style={styles.addText}>New Herd</Text>
+          <Text style={styles.addText}>{t('animals.newHerd')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -104,7 +107,7 @@ export default function AnimalsScreen() {
         <Ionicons name="search-outline" size={18} color={Colors.textLight} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search herds…"
+          placeholder={t('animals.searchHerds')}
           value={search}
           onChangeText={setSearch}
           placeholderTextColor={Colors.textLight}
@@ -112,22 +115,28 @@ export default function AnimalsScreen() {
       </View>
 
       <View style={styles.filterRow}>
-        {(['all', 'active', 'sold', 'archived'] as const).map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterBtn, filter === f && styles.filterActive]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[styles.filterText, filter === f && styles.filterActiveText]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {(['all', 'active', 'sold', 'archived'] as const).map((f) => {
+          const label = f === 'all' ? t('common.all')
+            : f === 'active'   ? t('animals.status.active')
+            : f === 'sold'     ? t('animals.status.sold')
+            : t('animals.status.archived');
+          return (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filterBtn, filter === f && styles.filterActive]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[styles.filterText, filter === f && styles.filterActiveText]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {isLoading ? (
         <View style={styles.center}>
-          <Text style={styles.loadingText}>Loading…</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       ) : (
         <FlatList
@@ -142,19 +151,19 @@ export default function AnimalsScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🐾</Text>
               <Text style={styles.emptyTitle}>
-                {herds?.length === 0 ? 'No herds yet' : 'No results'}
+                {herds?.length === 0 ? t('animals.noHerds') : t('animals.noResults')}
               </Text>
               <Text style={styles.emptyText}>
                 {herds?.length === 0
-                  ? 'Add your first herd to start tracking livestock.'
-                  : 'Try adjusting your search.'}
+                  ? t('animals.noHerdsPrompt')
+                  : t('animals.adjustSearch')}
               </Text>
               {herds?.length === 0 && (
                 <TouchableOpacity
                   style={styles.emptyBtn}
                   onPress={() => router.push('/(app)/animals/new' as any)}
                 >
-                  <Text style={styles.emptyBtnText}>Add First Herd</Text>
+                  <Text style={styles.emptyBtnText}>{t('animals.addFirstHerd')}</Text>
                 </TouchableOpacity>
               )}
             </View>
