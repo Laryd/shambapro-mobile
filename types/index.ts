@@ -21,6 +21,79 @@ export interface User {
 
 export type CropType = 'sugarcane' | 'maize' | 'groundnuts' | 'beans' | 'sorghum' | 'millet' | 'other';
 
+export type AnimalType = 'poultry' | 'cattle' | 'goats' | 'sheep' | 'pigs' | 'rabbits' | 'fish' | 'bees' | 'other';
+
+export interface AnimalHerd {
+  _id: string;
+  userId: string;
+  herdCode: string;
+  name: string;
+  animalType: AnimalType;
+  breed: string;
+  purpose: string;
+  initialCount: number;
+  currentCount: number;
+  acquisitionDate: string;
+  acquisitionCost?: number;
+  housingType?: string;
+  location?: string;
+  status: 'active' | 'sold' | 'archived';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vaccination {
+  _id: string;
+  userId: string;
+  herdId: string;
+  vaccineName: string;
+  vaccineType?: string;
+  dateAdministered: string;
+  nextDueDate?: string;
+  dosage?: string;
+  administrator?: string;
+  batchNumber?: string;
+  supplier?: string;
+  animalsVaccinated?: number;
+  cost?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnimalProduction {
+  _id: string;
+  userId: string;
+  herdId: string;
+  productionType: string;
+  quantity: number;
+  unit: string;
+  pricePerUnit: number;
+  totalRevenue: number;
+  date: string;
+  buyer?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnimalHealth {
+  _id: string;
+  userId: string;
+  herdId: string;
+  eventType: string;
+  date: string;
+  description: string;
+  affectedCount?: number;
+  countChange?: number;
+  cost?: number;
+  veterinarian?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Plot {
   _id: string;
   userId: string;
