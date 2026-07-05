@@ -9,14 +9,14 @@ export async function getSubscription(): Promise<SubscriptionState> {
 export async function initiateMpesaPayment(payload: {
   phone: string;
   plan: 'monthly' | 'yearly';
-}): Promise<{ checkoutRequestId: string }> {
-  const { data } = await apiClient.post('/api/mpesa/stk-push', payload);
-  return data.data;
+}): Promise<{ invoiceId: string; customerMessage?: string }> {
+  const { data } = await apiClient.post('/api/payment/stk-push', payload);
+  return data;
 }
 
 export async function checkPaymentStatus(
-  checkoutRequestId: string
+  invoiceId: string
 ): Promise<SubscriptionState> {
-  const { data } = await apiClient.post('/api/subscription', { checkoutRequestId });
+  const { data } = await apiClient.post('/api/subscription', { invoiceId });
   return data.data;
 }

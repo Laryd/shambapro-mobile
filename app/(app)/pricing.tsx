@@ -38,7 +38,7 @@ export default function PricingScreen() {
   const [plan, setPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [loading, setLoading] = useState(false);
-  const [checkoutId, setCheckoutId] = useState<string | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
 
   const { data: sub } = useQuery({
     queryKey: ['subscription'],
@@ -71,14 +71,16 @@ export default function PricingScreen() {
     }
     setLoading(true);
     try {
-      const { checkoutRequestId } = await initiateMpesaPayment({
+      const { invoiceId: newInvoiceId, customerMessage } = await initiateMpesaPayment({
         phone: cleanPhone,
         plan,
       });
-      setCheckoutId(checkoutRequestId);
+      setInvoiceId(newInvoiceId);
       Alert.alert(
         'Payment Requested',
-        'Check your phone for the M-Pesa prompt. After payment, tap "Verify Payment".',
+        customerMessage
+          ? `${customerMessage} After payment, tap "Verify Payment".`
+          : 'Check your phone for the M-Pesa prompt. After payment, tap "Verify Payment".',
         [{ text: 'OK' }]
       );
     } catch (err: unknown) {
@@ -89,10 +91,10 @@ export default function PricingScreen() {
   }
 
   async function handleVerify() {
-    if (!checkoutId) return;
+    if (!invoiceId) return;
     setLoading(true);
     try {
-      const result = await checkPaymentStatus(checkoutId);
+      const result = await checkPaymentStatus(invoiceId);
       if (result.isActive) {
         Alert.alert('', 'Subscription activated! Thank you.', [
           { text: 'OK', onPress: () => router.back() },
@@ -240,7 +242,7 @@ export default function PricingScreen() {
               style={styles.subscribeBtn}
             />
 
-            {checkoutId ? (
+            {invoiceId ? (
               <AppButton
                 title={loading ? 'Verifying…' : 'Verify Payment'}
                 onPress={handleVerify}
