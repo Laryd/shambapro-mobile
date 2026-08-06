@@ -8,7 +8,9 @@ import AppButton from '@/components/ui/AppButton';
 import { Colors, Spacing } from '@/constants/colors';
 import { MillDeduction, CropType } from '@/types';
 import {
-  MILL_DEDUCTION_NAMES, CROP_HARVEST_UNITS, CROP_USES_MILL_DEDUCTIONS, CROP_USES_RATOON, CROP_LABELS,
+  CROP_HARVEST_UNITS, CROP_USES_MILL_DEDUCTIONS, CROP_USES_RATOON, CROP_LABELS,
+  CROP_DEDUCTIONS_LABEL, CROP_BUYER_LABEL, CROP_STATEMENT_LABEL, CROP_BUYER_PLACEHOLDER,
+  getDeductionPresets,
 } from '@/constants/categories';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,6 +51,12 @@ export default function HarvestForm({ plotId, cropType = 'sugarcane', onSubmit, 
   const harvestUnits = CROP_HARVEST_UNITS[cropType] ?? ['kg', 'tons'];
   const usesMillDeductions = CROP_USES_MILL_DEDUCTIONS.has(cropType);
   const usesRatoon = CROP_USES_RATOON.has(cropType);
+  // Sugarcane keeps its existing (localized) copy; other crops get their own English wording
+  // since crop-specific labels aren't routed through i18n yet.
+  const deductionsLabel = cropType === 'sugarcane' ? t('harvest.deductions') : (CROP_DEDUCTIONS_LABEL[cropType] ?? t('harvest.deductions'));
+  const buyerLabel = cropType === 'sugarcane' ? t('harvest.buyer') : (usesMillDeductions ? (CROP_BUYER_LABEL[cropType] ?? 'Buyer') : 'Buyer');
+  const buyerPlaceholder = usesMillDeductions ? (CROP_BUYER_PLACEHOLDER[cropType] ?? 'Buyer name') : 'e.g. NCPB, Trader';
+  const statementLabel = cropType === 'sugarcane' ? t('harvest.millRef') : (CROP_STATEMENT_LABEL[cropType] ?? t('harvest.millRef'));
 
   const [unit, setUnit] = useState(harvestUnits[0]);
   const [ratoonCycle, setRatoonCycle] = useState(0);
@@ -186,22 +194,22 @@ export default function HarvestForm({ plotId, cropType = 'sugarcane', onSubmit, 
         name="buyer"
         render={({ field: { onChange, value } }) => (
           <AppInput
-            label={`${usesMillDeductions ? t('harvest.buyer') : 'Buyer'} (${t('common.optional')})`}
+            label={`${buyerLabel} (${t('common.optional')})`}
             value={value}
             onChangeText={onChange}
-            placeholder={usesMillDeductions ? 'Mill name' : 'e.g. NCPB, Trader'}
+            placeholder={buyerPlaceholder}
           />
         )}
       />
 
-      {/* Mill statement ref — sugarcane only */}
+      {/* Statement ref — crops using mill/factory deductions only */}
       {usesMillDeductions && (
         <Controller
           control={control}
           name="millStatementRef"
           render={({ field: { onChange, value } }) => (
             <AppInput
-              label={`${t('harvest.millRef')} (${t('common.optional')})`}
+              label={`${statementLabel} (${t('common.optional')})`}
               value={value}
               onChangeText={onChange}
               placeholder="Reference #"
@@ -210,14 +218,14 @@ export default function HarvestForm({ plotId, cropType = 'sugarcane', onSubmit, 
         />
       )}
 
-      {/* Mill deductions — sugarcane only */}
+      {/* Deductions — crops using mill/factory deductions only */}
       {usesMillDeductions && (
         <>
-          <Text style={styles.sectionTitle}>{t('harvest.deductions')}</Text>
+          <Text style={styles.sectionTitle}>{deductionsLabel}</Text>
 
           {/* Preset quick-add */}
           <View style={styles.presetRow}>
-            {MILL_DEDUCTION_NAMES.slice(0, -1).map((n) => (
+            {getDeductionPresets(cropType).map((n) => (
               <TouchableOpacity
                 key={n}
                 style={styles.presetChip}

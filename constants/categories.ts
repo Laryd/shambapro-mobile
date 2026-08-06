@@ -1,7 +1,7 @@
 import { CropType } from '@/types';
 
 export const CROP_TYPES: CropType[] = [
-  'sugarcane', 'maize', 'groundnuts', 'beans', 'sorghum', 'millet', 'other',
+  'sugarcane', 'maize', 'groundnuts', 'beans', 'sorghum', 'millet', 'coffee', 'other',
 ];
 
 export const CROP_LABELS: Record<CropType, string> = {
@@ -11,6 +11,7 @@ export const CROP_LABELS: Record<CropType, string> = {
   beans: 'Beans',
   sorghum: 'Sorghum',
   millet: 'Millet (Wimbi)',
+  coffee: 'Coffee',
   other: 'Other Crop',
 };
 
@@ -21,6 +22,7 @@ export const CROP_EMOJI: Record<CropType, string> = {
   beans: '🫘',
   sorghum: '🌾',
   millet: '🌿',
+  coffee: '☕',
   other: '🌱',
 };
 
@@ -31,6 +33,7 @@ export const CROP_VARIETIES: Record<CropType, string[]> = {
   beans:      ['Rose Coco', 'Mwitemania', 'Lyamungu 85', 'KATB1', 'KATX69', 'Kenya Wonder', 'Mieze', 'Jesca', 'GLP 585', 'Other'],
   sorghum:    ['Gadam', 'Serena', 'KARI Mtama 1', 'ICSR 93034', 'E 6518', 'Seredo', 'Other'],
   millet:     ['GBK-018263', 'SDMV 89005', 'Serena', 'KAT/PM-1', 'U-15', 'Other'],
+  coffee:     ['SL28', 'SL34', 'Ruiru 11', 'Batian', 'K7', 'French Mission', 'Other'],
   other:      ['Local Variety', 'Improved Variety', 'Other'],
 };
 
@@ -65,6 +68,14 @@ export const EXPENSE_CATEGORIES = [
   'cooperative_fees',
   'administrative',
   'processing',
+  'seedlings',
+  'mulching',
+  'pruning',
+  'pulping',
+  'washing',
+  'hulling',
+  'grading',
+  'certification',
   'other',
 ] as const;
 
@@ -209,6 +220,36 @@ export const CROP_EXPENSE_CATEGORIES: Record<CropType, { value: string; label: s
     { value: 'fuel',             label: 'Fuel' },
     { value: 'other',            label: 'Other' },
   ],
+  coffee: [
+    { value: 'land_lease',       label: 'Land Lease / Rent' },
+    { value: 'soil_testing',     label: 'Soil Testing' },
+    { value: 'seedlings',        label: 'Seedlings / Nursery' },
+    { value: 'fertilizer',       label: 'Fertilizer' },
+    { value: 'pesticides',       label: 'Pesticides / Fungicide (CBD, Leaf Rust)' },
+    { value: 'mulching',         label: 'Mulching' },
+    { value: 'pruning',          label: 'Pruning / Stumping' },
+    { value: 'weeding',          label: 'Weeding' },
+    { value: 'irrigation',       label: 'Irrigation' },
+    { value: 'labor_casual',     label: 'Labor — Casual (day rate)' },
+    { value: 'labor_piece',      label: 'Labor — Piece rate' },
+    { value: 'labor_permanent',  label: 'Labor — Permanent staff' },
+    { value: 'harvesting',       label: 'Picking / Harvesting' },
+    { value: 'pulping',          label: 'Pulping' },
+    { value: 'washing',          label: 'Washing / Fermentation' },
+    { value: 'drying',           label: 'Drying (Parchment / Mbuni)' },
+    { value: 'hulling',          label: 'Hulling / Milling' },
+    { value: 'grading',          label: 'Sorting / Grading' },
+    { value: 'storage',          label: 'Storage' },
+    { value: 'transportation',   label: 'Transportation' },
+    { value: 'fuel',             label: 'Fuel' },
+    { value: 'equipment_hire',   label: 'Equipment Hire' },
+    { value: 'equipment',        label: 'Equipment Purchase / Repair' },
+    { value: 'insurance',        label: 'Crop Insurance' },
+    { value: 'cooperative_fees', label: 'Co-operative / Factory Fees' },
+    { value: 'certification',    label: 'Certification (Fairtrade, etc.)' },
+    { value: 'administrative',   label: 'Administrative' },
+    { value: 'other',            label: 'Other' },
+  ],
   other: [
     { value: 'land_lease',       label: 'Land Lease / Rent' },
     { value: 'tilling',          label: 'Tilling / Ploughing' },
@@ -248,11 +289,42 @@ export const CROP_HARVEST_UNITS: Record<CropType, string[]> = {
   beans:      ['kg', 'bags (90kg)'],
   sorghum:    ['kg', 'bags (90kg)', 'tons'],
   millet:     ['kg', 'bags (90kg)'],
+  coffee:     ['kg (cherry)', 'kg (parchment)', 'kg (clean coffee)', 'kg'],
   other:      ['kg', 'tons', 'bags', 'units'],
 };
 
-export const CROP_USES_MILL_DEDUCTIONS = new Set<CropType>(['sugarcane']);
+export const CROP_USES_MILL_DEDUCTIONS = new Set<CropType>(['sugarcane', 'coffee']);
 export const CROP_USES_RATOON = new Set<CropType>(['sugarcane']);
+
+// Preset quick-add deductions shown in the harvest form, per crop.
+// Falls back to a generic set for crops not listed here.
+export const CROP_DEDUCTION_PRESETS: Partial<Record<CropType, string[]>> = {
+  sugarcane: ['Transport Levy', 'Development Levy', 'Cess', 'Co-operative Deduction', 'Nucleus Estate Levy', 'Loan Repayment'],
+  coffee:    ['Pulping Fee', 'Cooperative Levy', 'Cess', 'Factory Advance', 'Transport Levy', 'Loan Repayment'],
+};
+const DEFAULT_DEDUCTION_PRESETS = ['Transport Levy', 'Cess', 'Loan Repayment'];
+
+export function getDeductionPresets(cropType: CropType): string[] {
+  return CROP_DEDUCTION_PRESETS[cropType] ?? DEFAULT_DEDUCTION_PRESETS;
+}
+
+// Labels for the buyer/statement/deductions fields in the harvest form, per crop.
+export const CROP_DEDUCTIONS_LABEL: Partial<Record<CropType, string>> = {
+  sugarcane: 'Mill Deductions',
+  coffee:    'Factory Deductions',
+};
+export const CROP_BUYER_LABEL: Partial<Record<CropType, string>> = {
+  sugarcane: 'Mill name',
+  coffee:    'Factory / Buyer',
+};
+export const CROP_STATEMENT_LABEL: Partial<Record<CropType, string>> = {
+  sugarcane: 'Mill Statement Ref',
+  coffee:    'Factory Statement Ref',
+};
+export const CROP_BUYER_PLACEHOLDER: Partial<Record<CropType, string>> = {
+  sugarcane: 'e.g. Mumias Sugar',
+  coffee:    'e.g. Kiambu Coffee Factory',
+};
 
 // Legacy — kept for backward compat with any remaining refs
 export const SUGARCANE_VARIETIES = CROP_VARIETIES.sugarcane;

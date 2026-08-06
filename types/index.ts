@@ -19,7 +19,7 @@ export interface User {
   createdAt?: string;
 }
 
-export type CropType = 'sugarcane' | 'maize' | 'groundnuts' | 'beans' | 'sorghum' | 'millet' | 'other';
+export type CropType = 'sugarcane' | 'maize' | 'groundnuts' | 'beans' | 'sorghum' | 'millet' | 'coffee' | 'other';
 
 export type AnimalType = 'poultry' | 'cattle' | 'goats' | 'sheep' | 'pigs' | 'rabbits' | 'fish' | 'bees' | 'other';
 
